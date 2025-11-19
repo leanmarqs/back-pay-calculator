@@ -1,11 +1,21 @@
 import { readFile } from 'node:fs/promises'
 import { writeFile } from 'node:fs/promises'
+import { get } from 'node:http'
+import { parse } from 'node:path'
 
 import ExcelJS from 'exceljs'
 import { PDFParse } from 'pdf-parse'
 
 type RD = 'R' | 'D'
 const alowedItems: string[] = ['VENCIMENTO BASICO', 'IQ - 52% - LEI 11.091/05 AT']
+
+type Rubrica = {
+  rubrica: string
+  rubricaNome: string
+  rd: RD
+  seq: number
+  amount: number
+}[]
 
 function formatTable(lines: string[], separator: string = '|') {
   const rows: string[][] = lines.map((line) => line.split(separator).map((col) => col.trim()))
@@ -24,6 +34,76 @@ function formatTable(lines: string[], separator: string = '|') {
   )
 }
 
+function getFormatedData(lines: string[]): string[] {
+  let semester: number = 1
+  const semester1: string[] = []
+  let semester2: string[] = []
+
+  // separete values by semester.
+  lines.forEach((line) => {
+    if (line.includes('2º Semestre')) {
+      semester = 2
+    }
+    if (semester === 1) {
+      semester1.push(line)
+    }
+    if (semester === 2) {
+      semester2.push(line)
+    }
+  })
+
+  const editedLines: string[] = []
+  for (let i = 0; i < semester1.length; i++) {
+    const data1 = semester1[i].split('|')
+    let store = true
+    for (let j = 0; j < semester2.length; j++) {
+      const data2 = semester2[j].split('|')
+      if (data1[0].trim() === data2[0].trim() && data1[2].trim() === data2[2].trim()) {
+        const editedLine = semester1[i] + ' | ' + semester2[j]
+        editedLines.push(editedLine)
+
+        semester2 = semester2.filter((item) => item !== semester2[j])
+        store = false
+        break
+      }
+    }
+    if (store) {
+      editedLines.push(semester1[i].concat('| | | | | | | | | | '))
+    }
+  }
+
+  if (semester2.length > 0) {
+    for (let i = 0; i < semester2.length; i++) {
+      const data1 = semester2[i].split('|')
+
+      const lastR = editedLines.findLastIndex(
+        (item) => item.includes('|R|') && !item.includes('*****'),
+      )
+      const lastD = editedLines.findLastIndex(
+        (item) => item.includes('|D|') && !item.includes('*****'),
+      )
+      console.log('[if (semester2.length > 0)]: line: ' + semester2[i])
+      console.log('[if (semester2.length > 0)]: last occurrence of R: ' + lastR)
+
+      if (data1.length > 1) {
+        if (data1[2].trim() === 'R') {
+          editedLines.splice(lastR + 1, 0, '| | | | | | | | | | ' + semester2[i])
+        }
+        if (data1[2].trim() === 'D') {
+          editedLines.splice(lastD + 1, 0, '| | | | | | | | | | ' + semester2[i])
+        }
+
+        // Remover item corretamente
+        semester2 = semester2.filter((_, idx) => idx !== i)
+
+        if (semester2.length === 0) break
+      }
+    }
+  }
+
+  return editedLines
+}
+
 function getData(lines: string[]): string[] {
   let store: boolean = false
   let rd: RD = new Object() as RD
@@ -32,12 +112,10 @@ function getData(lines: string[]): string[] {
   let semester: string = ''
 
   lines.forEach((line) => {
-    // console.log(`Processing line: ${line}`)
     const result: RegExpMatchArray | null = line.match(regex)
 
     if (result) {
       semester = result[0].trim()
-      console.log(`Found semester: ${semester}`)
       folhas.push(`${semester}`)
     }
 
@@ -93,7 +171,7 @@ async function saveToExcel(filename: string, rawLines: string[]) {
   }
 
   rawLines.forEach((line) => {
-    // Caso seja a linha "2025 - 1º Semestre"
+    // Caso seja a linha "20XX - Xº Semestre"
     if (!line.includes('|')) {
       worksheet.addRow([line])
       return
@@ -150,6 +228,7 @@ async function parseFolha() {
   const result = await parser.getText()
   await parser.destroy()
   const data: string[] = []
+  const editedData: string[] = []
 
   result.pages.forEach(async (page) => {
     const lines = page.text
@@ -157,19 +236,22 @@ async function parseFolha() {
       .map((line) => line.trim())
       .filter((line) => line.length > 0)
 
-    data.push(...getData(lines))
+    const storedLines = getData(lines)
+    data.push(...storedLines)
+    const editedLines = getFormatedData(storedLines)
+    editedData.push(...editedLines)
 
-    const formatted: string[] = formatTable(data.map((l) => l.replace('\n', '')))
+    const formatted: string[] = formatTable(editedLines.map((l) => l.replace('\n', '')))
 
     formatted.forEach((line: string) => console.log(line))
   })
 
-  const formattedLines = formatTable(data.map((l) => l.replace('\n', '')))
+  const formattedLines: string[] = formatTable(editedData.map((l) => l.replace('\n', '')))
 
-  // await saveToTxt('relatorio-financeiro', formattedLines.join('\n'))
+  await saveToTxt('relatorio-financeiro-editado', formattedLines.join('\n'))
 
   // Salvar Excel
-  await saveToExcel('relatorio-financeiro', formattedLines)
+  // await saveToExcel('relatorio-financeiro', formattedLines)
 }
 
 parseFolha()
