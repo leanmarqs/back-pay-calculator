@@ -72,6 +72,7 @@ function getFormatedData(lines: string[]): string[] {
     }
   }
 
+  // still have items on 2 semester
   if (semester2.length > 0) {
     for (let i = 0; i < semester2.length; i++) {
       const data1 = semester2[i].split('|')
@@ -99,6 +100,25 @@ function getFormatedData(lines: string[]): string[] {
         if (semester2.length === 0) break
       }
     }
+  }
+
+  // remove extra hearders
+  for (let i = 0; i < editedLines.length; i++) {
+    const editedLine = editedLines[i].split('|')
+    if (editedLine[0].trim() === '') {
+      editedLine[0] = editedLine[10]
+    }
+    if (editedLine[1].trim() === '') {
+      editedLine[1] = editedLine[11]
+    }
+    if (editedLine[2].trim() === '') {
+      editedLine[2] = editedLine[12]
+    }
+    if (editedLine[3].trim() === '') {
+      editedLine[3] = editedLine[13]
+    }
+
+    editedLines[i] = editedLine.join('|')
   }
 
   return editedLines
@@ -236,8 +256,11 @@ async function parseFolha() {
       .map((line) => line.trim())
       .filter((line) => line.length > 0)
 
+    // data without headers and divided by semesters
     const storedLines = getData(lines)
     data.push(...storedLines)
+
+    // data without headers and settled inline.
     const editedLines = getFormatedData(storedLines)
     editedData.push(...editedLines)
 
