@@ -1,18 +1,13 @@
 import dotenv from 'dotenv'
 import express from 'express'
 
+dotenv.config()
+
 const app = express()
 app.use(express.json())
 
-dotenv.config()
+const PORT = Number(process.env.DEFAULT_SERVER_PORT) || 3000
 
-const SERVER_PORT =
-  Number(process.env.DEFAULT_SERVER_PORT) || Number(process.env.ALTERNATIVE_SERVER_PORT)
-
-app.get('/', (req, res) => {
-  res.status(200).send('Hello Weirdo!')
-})
-
-app.listen(SERVER_PORT, () => {
-  console.log(`Server running on http://localhost:${SERVER_PORT}`)
+app.listen(PORT, () => {
+  console.log(`Rodando em http://localhost:${PORT}`)
 })
