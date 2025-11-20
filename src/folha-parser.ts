@@ -34,24 +34,7 @@ function formatTable(lines: string[], separator: string = '|') {
   )
 }
 
-function getFormatedData(lines: string[]): string[] {
-  let semester: number = 1
-  const semester1: string[] = []
-  let semester2: string[] = []
-
-  // separete values by semester.
-  lines.forEach((line) => {
-    if (line.includes('2º Semestre')) {
-      semester = 2
-    }
-    if (semester === 1) {
-      semester1.push(line)
-    }
-    if (semester === 2) {
-      semester2.push(line)
-    }
-  })
-
+function setDataInLine(semester1: string[], semester2: string[]) {
   const editedLines: string[] = []
   for (let i = 0; i < semester1.length; i++) {
     const data1 = semester1[i].split('|')
@@ -83,8 +66,6 @@ function getFormatedData(lines: string[]): string[] {
       const lastD = editedLines.findLastIndex(
         (item) => item.includes('|D|') && !item.includes('*****'),
       )
-      console.log('[if (semester2.length > 0)]: line: ' + semester2[i])
-      console.log('[if (semester2.length > 0)]: last occurrence of R: ' + lastR)
 
       if (data1.length > 1) {
         if (data1[2].trim() === 'R') {
@@ -103,23 +84,130 @@ function getFormatedData(lines: string[]): string[] {
   }
 
   // remove extra hearders
-  for (let i = 0; i < editedLines.length; i++) {
-    const editedLine = editedLines[i].split('|')
-    if (editedLine[0].trim() === '') {
-      editedLine[0] = editedLine[10]
-    }
-    if (editedLine[1].trim() === '') {
-      editedLine[1] = editedLine[11]
-    }
-    if (editedLine[2].trim() === '') {
-      editedLine[2] = editedLine[12]
-    }
-    if (editedLine[3].trim() === '') {
-      editedLine[3] = editedLine[13]
+  // for (let i = 0; i < editedLines.length; i++) {
+  //   const editedLine = editedLines[i].split('|')
+  //   if (editedLine[0].trim() === '') {
+  //     editedLine[0] = editedLine[10]
+  //   }
+  //   if (editedLine[1].trim() === '') {
+  //     editedLine[1] = editedLine[11]
+  //   }
+  //   if (editedLine[2].trim() === '') {
+  //     editedLine[2] = editedLine[12]
+  //   }
+  //   if (editedLine[3].trim() === '') {
+  //     editedLine[3] = editedLine[13]
+  //   }
+
+  //   editedLines[i] = editedLine.join('|')
+  // }
+
+  return editedLines
+}
+
+function getFormatedData(lines: string[]): string[] {
+  let semester: number = 1
+  let semester1: string[] = []
+  let semester2: string[] = []
+  const editedLines: string[] = []
+  const regex = /\b\d{4}\b/g
+  const r = lines[0].match(regex)
+  let year: string = r ? r[0] : 'Year not Found.'
+
+  // separete values by semester.
+  lines.forEach((line) => {
+    const r = line.match(regex)
+    if (r) {
+      if (year !== r[0]) {
+        year = r[0]
+        const inLineData: string[] = setDataInLine(semester1, semester2)
+        inLineData.forEach((line) => editedLines.push(line))
+        semester1 = []
+        semester2 = []
+      }
     }
 
-    editedLines[i] = editedLine.join('|')
+    semester = line.includes('2º Semestre') ? 2 : line.includes('1º Semestre') ? 1 : semester
+
+    if (semester === 1) {
+      semester1.push(line)
+    }
+    if (semester === 2) {
+      semester2.push(line)
+    }
+  })
+
+  if (semester1.length > 0) {
+    const inLineData: string[] = setDataInLine(semester1, semester2)
+    inLineData.forEach((line) => editedLines.push(line))
   }
+
+  // const editedLines: string[] = []
+  // for (let i = 0; i < semester1.length; i++) {
+  //   const data1 = semester1[i].split('|')
+  //   let store = true
+  //   for (let j = 0; j < semester2.length; j++) {
+  //     const data2 = semester2[j].split('|')
+  //     if (data1[0].trim() === data2[0].trim() && data1[2].trim() === data2[2].trim()) {
+  //       const editedLine = semester1[i] + ' | ' + semester2[j]
+  //       editedLines.push(editedLine)
+
+  //       semester2 = semester2.filter((item) => item !== semester2[j])
+  //       store = false
+  //       break
+  //     }
+  //   }
+  //   if (store) {
+  //     editedLines.push(semester1[i].concat('| | | | | | | | | | '))
+  //   }
+  // }
+
+  // // still have items on 2 semester
+  // if (semester2.length > 0) {
+  //   for (let i = 0; i < semester2.length; i++) {
+  //     const data1 = semester2[i].split('|')
+
+  //     const lastR = editedLines.findLastIndex(
+  //       (item) => item.includes('|R|') && !item.includes('*****'),
+  //     )
+  //     const lastD = editedLines.findLastIndex(
+  //       (item) => item.includes('|D|') && !item.includes('*****'),
+  //     )
+
+  //     if (data1.length > 1) {
+  //       if (data1[2].trim() === 'R') {
+  //         editedLines.splice(lastR + 1, 0, '| | | | | | | | | | ' + semester2[i])
+  //       }
+  //       if (data1[2].trim() === 'D') {
+  //         editedLines.splice(lastD + 1, 0, '| | | | | | | | | | ' + semester2[i])
+  //       }
+
+  //       // Remover item corretamente
+  //       semester2 = semester2.filter((_, idx) => idx !== i)
+
+  //       if (semester2.length === 0) break
+  //     }
+  //   }
+  // }
+
+  // remove extra hearders
+  // for (let i = 0; i < editedLines.length; i++) {
+  //   const editedLine = editedLines[i].split('|')
+  //   if (editedLine[0].trim() === '') {
+  //     editedLine[0] = editedLine[10]
+  //   }
+  //   if (editedLine[1].trim() === '') {
+  //     editedLine[1] = editedLine[11]
+  //   }
+  //   if (editedLine[2].trim() === '') {
+  //     editedLine[2] = editedLine[12]
+  //   }
+  //   if (editedLine[3].trim() === '') {
+  //     editedLine[3] = editedLine[13]
+  //   }
+
+  //   editedLines[i] = editedLine.join('|')
+  // }
 
   return editedLines
 }
@@ -241,12 +329,13 @@ async function saveToTxt(filename: string, content: string) {
 }
 
 async function parseFolha() {
-  const buffer = await readFile('relatorio-2023-2025.pdf')
+  const buffer = await readFile('relatorio.pdf')
   const parser = new PDFParse({ data: buffer })
 
   // const result = await parser.getTable()
   const result = await parser.getText()
   await parser.destroy()
+  const rawData: string[] = []
   const data: string[] = []
   const editedData: string[] = []
 
@@ -255,23 +344,20 @@ async function parseFolha() {
       .split('\n')
       .map((line) => line.trim())
       .filter((line) => line.length > 0)
-
-    // data without headers and divided by semesters
-    const storedLines = getData(lines)
-    data.push(...storedLines)
-
-    // data without headers and settled inline.
-    const editedLines = getFormatedData(storedLines)
-    editedData.push(...editedLines)
-
-    const formatted: string[] = formatTable(editedLines.map((l) => l.replace('\n', '')))
-
-    formatted.forEach((line: string) => console.log(line))
+    rawData.push(...lines)
   })
+
+  // data without headers and divided by semesters
+  const storedLines = getData(rawData)
+  data.push(...storedLines)
+
+  // data without headers and settled inline.
+  const editedLines = getFormatedData(data)
+  editedData.push(...editedLines)
 
   const formattedLines: string[] = formatTable(editedData.map((l) => l.replace('\n', '')))
 
-  await saveToTxt('relatorio-financeiro-editado', formattedLines.join('\n'))
+  await saveToTxt('relatorio-financeiro', formattedLines.join('\n'))
 
   // Salvar Excel
   // await saveToExcel('relatorio-financeiro', formattedLines)
